@@ -9,7 +9,7 @@
 Easiest way to do it is create a pod with a single container and save its definition in a YAML file:
 
 ```bash
-kubectl run busybox --image=busybox --restart=Never -o yaml --dry-run -- /bin/sh -c 'echo hello;sleep 3600' > pod.yaml
+kubectl run busybox --image=busybox --restart=Never --generator=pod-run/v1 --command -o yaml --dry-run -- /bin/sh -c 'echo hello;sleep 3600' > pod.yaml
 vi pod.yaml
 ```
 
@@ -17,7 +17,7 @@ Copy/paste the container related values, so your final YAML should contain the f
 
 ```YAML
 containers:
-  - args:
+  - command:
     - /bin/sh
     - -c
     - echo hello;sleep 3600
@@ -25,7 +25,7 @@ containers:
     imagePullPolicy: IfNotPresent
     name: busybox
     resources: {}
-  - args:
+  - command:
     - /bin/sh
     - -c
     - echo hello;sleep 3600

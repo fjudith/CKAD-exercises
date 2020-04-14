@@ -11,6 +11,8 @@ kubernetes.io > Documentation > Tasks > Access Applications in a Cluster > [Acce
 
 kubernetes.io > Documentation > Tasks > Access Applications in a Cluster > [Use Port Forwarding to Access Applications in a Cluster](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/)
 
+kubernetes.io > Documentation > Reference > CLI kubectl > [kubectl Usage Conventions](https://kubernetes.io/fr/docs/reference/kubectl/conventions/)
+
 ### Create a namespace called 'mynamespace' and a pod with image nginx called nginx on this namespace
 
 <details><summary>show</summary>
@@ -18,7 +20,7 @@ kubernetes.io > Documentation > Tasks > Access Applications in a Cluster > [Use 
 
 ```bash
 kubectl create namespace mynamespace
-kubectl run nginx --image=nginx --restart=Never -n mynamespace
+kubectl -n mynamespace run nginx --image=nginx --restart=Never --generator=run-pod/v1
 ```
 
 </p>
@@ -65,7 +67,7 @@ kubectl create -f pod.yaml -n mynamespace
 Alternatively, you can run in one line
 
 ```bash
-kubectl run nginx --image=nginx --restart=Never --dry-run -o yaml | kubectl create -n mynamespace -f -
+kubectl run nginx --image=nginx --restart=Never --generator=run-pod/v1 --dry-run -o yaml | kubectl create -n mynamespace -f -
 ```
 
 </p>
@@ -77,9 +79,9 @@ kubectl run nginx --image=nginx --restart=Never --dry-run -o yaml | kubectl crea
 <p>
 
 ```bash
-kubectl run busybox --image=busybox --command --restart=Never -it -- env # -it will help in seeing the output
+kubectl run busybox --image=busybox --command --restart=Never --generator=run-pod/v1 -it -- env # -it will help in seeing the output
 # or, just run it without -it
-kubectl run busybox --image=busybox --command --restart=Never -- env
+kubectl run busybox --image=busybox --command --restart=Never --generator=run-pod/v1 -- env
 # and then, check its logs
 kubectl logs busybox
 ```
@@ -94,7 +96,7 @@ kubectl logs busybox
 
 ```bash
 # create a  YAML template with this command
-kubectl run busybox --image=busybox --restart=Never --dry-run -o yaml --command -- env > envpod.yaml
+kubectl run busybox --image=busybox --restart=Never --generator=run-pod/v1 --dry-run -o yaml --command -- env > envpod.yaml
 # see it
 cat envpod.yaml
 ```
@@ -125,6 +127,8 @@ kubectl apply -f envpod.yaml
 kubectl logs busybox
 ```
 
+> **Warning**: Don't forget the `--command` argument. Either the command will be set as a pod `args` spec.
+
 </p>
 </details>
 
@@ -137,6 +141,16 @@ kubectl logs busybox
 kubectl create namespace myns -o yaml --dry-run
 ```
 
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  name: myns
+spec: {}
+status: {}
+```
+
 </p>
 </details>
 
@@ -147,6 +161,20 @@ kubectl create namespace myns -o yaml --dry-run
 
 ```bash
 kubectl create quota myrq --hard=cpu=1,memory=1G,pods=2 --dry-run -o yaml
+```
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  creationTimestamp: null
+  name: myrq
+spec:
+  hard:
+    cpu: "1"
+    memory: 1G
+    pods: "2"
+status: {}
 ```
 
 </p>
@@ -170,8 +198,10 @@ kubectl get po --all-namespaces
 <p>
 
 ```bash
-kubectl run nginx --image=nginx --restart=Never --port=80
+kubectl run nginx --image=nginx --restart=Never --generator=run-pod/v1 --port=80
 ```
+
+> **Warning**: Exposition is not requested, so do not use the `--expose` command line argument.
 
 </p>
 </details>
@@ -187,6 +217,7 @@ kubectl set image pod/nginx nginx=nginx:1.7.1
 kubectl describe po nginx # you will see an event 'Container will be killed and recreated'
 kubectl get po nginx -w # watch it
 ```
+
 *Note*: you can check pod's image by running
 
 ```bash
@@ -204,7 +235,7 @@ kubectl get po nginx -o jsonpath='{.spec.containers[].image}{"\n"}'
 ```bash
 kubectl get po -o wide # get the IP, will be something like '10.1.1.131'
 # create a temp busybox pod
-kubectl run busybox --image=busybox --rm -it --restart=Never -- wget -O- 10.1.1.131:80
+kubectl run busybox --image=busybox --rm -it --restart=Never --generator=run-pod/v1 -- wget -O- 10.1.1.131:80
 ```
 
 Alternatively you can also try a more advanced option:
@@ -214,12 +245,12 @@ Alternatively you can also try a more advanced option:
 NGINX_IP=$(kubectl get pod nginx -o jsonpath='{.status.podIP}')
 # create a temp busybox pod
 kubectl run busybox --image=busybox --env="NGINX_IP=$NGINX_IP" --rm -it --restart=Never -- wget -O- $NGINX_IP:80
-``` 
+```
 
 </p>
 </details>
 
-### Get pod's YAML
+### Get the nginx pod YAML
 
 <details><summary>show</summary>
 <p>
@@ -237,7 +268,7 @@ kubectl get po nginx --output=yaml
 </p>
 </details>
 
-### Get information about the pod, including details about potential issues (e.g. pod hasn't started)
+### Get information about the nginx pod, including details about potential issues (e.g. pod hasn't started)
 
 <details><summary>show</summary>
 <p>
@@ -249,7 +280,7 @@ kubectl describe po nginx
 </p>
 </details>
 
-### Get pod logs
+### Get the nginx pod logs
 
 <details><summary>show</summary>
 <p>
@@ -261,7 +292,7 @@ kubectl logs nginx
 </p>
 </details>
 
-### If pod crashed and restarted, get logs about the previous instance
+### If the nginx pod crashed and restarted, get logs about the previous instance
 
 <details><summary>show</summary>
 <p>
@@ -285,27 +316,27 @@ kubectl exec -it nginx -- /bin/sh
 </p>
 </details>
 
-### Create a busybox pod that echoes 'hello world' and then exits
+### Create a busybox pod that displays the output 'hello world' and then exits
 
 <details><summary>show</summary>
 <p>
 
 ```bash
-kubectl run busybox --image=busybox -it --restart=Never -- echo 'hello world'
+kubectl run busybox --image=busybox -it --restart=Never --generator=run-pod/v1 -- echo 'hello world'
 # or
-kubectl run busybox --image=busybox -it --restart=Never -- /bin/sh -c 'echo hello world'
+kubectl run busybox --image=busybox -it --restart=Never --generator=run-pod/v1 -- /bin/sh -c 'echo hello world'
 ```
 
 </p>
 </details>
 
-### Do the same, but have the pod deleted automatically when it's completed
+### Do the same, but have the busybox pod deleted automatically when it's completed
 
 <details><summary>show</summary>
 <p>
 
 ```bash
-kubectl run busybox --image=busybox -it --rm --restart=Never -- /bin/sh -c 'echo hello world'
+kubectl run busybox --image=busybox -it --rm --restart=Never --generator=run-pod/v1 -- /bin/sh -c 'echo hello world'
 kubectl get po # nowhere to be found :)
 ```
 
@@ -318,14 +349,16 @@ kubectl get po # nowhere to be found :)
 <p>
 
 ```bash
-kubectl run nginx --image=nginx --restart=Never --env=var1=val1
+kubectl run nginx --image=nginx --restart=Never --generator=run-pod/v1 --env=var1=val1
 # then
 kubectl exec -it nginx -- env
 # or
 kubectl describe po nginx | grep val1
 # or
-kubectl run nginx --restart=Never --image=nginx --env=var1=val1 -it --rm -- env
+kubectl run nginx --image=nginx --restart=Never --generator=run-pod/v1 --env=var1=val1 -it --rm -- env
 ```
+
+> Note: Guidelines does not explicitly specifies that the pod should be deleted. The `--rm` command line argument is here for convenience.
 
 </p>
 </details>

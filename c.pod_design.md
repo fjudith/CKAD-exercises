@@ -10,9 +10,9 @@ kubernetes.io > Documentation > Concepts > Overview > [Labels and Selectors](htt
 <p>
 
 ```bash
-kubectl run nginx1 --image=nginx --restart=Never --labels=app=v1
-kubectl run nginx2 --image=nginx --restart=Never --labels=app=v1
-kubectl run nginx3 --image=nginx --restart=Never --labels=app=v1
+kubectl run nginx1 --image=nginx --restart=Never --generator=run-pod/v1 --labels=app=v1
+kubectl run nginx2 --image=nginx --restart=Never --generator=run-pod/v1 --labels=app=v1
+kubectl run nginx3 --image=nginx --restart=Never --generator=run-pod/v1 --labels=app=v1
 ```
 
 </p>
@@ -42,15 +42,15 @@ kubectl label po nginx2 app=v2 --overwrite
 </p>
 </details>
 
-### Get the label 'app' for the pods
+### Get the value of the label 'app' of all pods that owns this label
 
 <details><summary>show</summary>
 <p>
 
 ```bash
-kubectl get po -L app
+kubectl get po -L app -l app
 # or
-kubectl get po --label-columns=app
+kubectl get po --label-columns=app --selector=app
 ```
 
 </p>
@@ -81,8 +81,6 @@ kubectl get po --selector=app=v2
 kubectl label po nginx1 nginx2 nginx3 app-
 # or
 kubectl label po nginx{1..3} app-
-# or
-kubectl label po -lapp app-
 ```
 
 </p>
@@ -140,10 +138,10 @@ kubectl annotate po nginx{1..3} description='my description'
 <p>
 
 ```bash
-kubectl describe po nginx1 | grep -i 'annotations'
+kubectl describe po nginx1 | grep -i 'annotations' -A 5
 ```
 
-As an alternative to using `| grep` you can use jsonPath like `kubectl get po nginx -o jsonpath='{.metadata.annotations}{"\n"}'`
+As an alternative to using `| grep` you can use jsonPath like `kubectl get po nginx1 -o jsonpath='{.metadata.annotations}{"\n"}'`
 
 </p>
 </details>
@@ -182,12 +180,6 @@ kubernetes.io > Documentation > Concepts > Workloads > Controllers > [Deployment
 <p>
 
 ```bash
-kubectl run nginx --image=nginx:1.7.8 --replicas=2 --port=80
-```
-
-**However**, `kubectl run` for Deployments is Deprecated and will be removed in a future version. What you can do is:
-
-```bash
 kubectl create deployment nginx  --image=nginx:1.7.8  --dry-run -o yaml > deploy.yaml
 vi deploy.yaml
 # change the replicas field from 1 to 2
@@ -218,7 +210,7 @@ kubectl get deploy nginx -o yaml
 </p>
 </details>
 
-### View the YAML of the replica set that was created by this deployment
+### View the YAML of the replicaset that was created by this deployment
 
 <details><summary>show</summary>
 <p>
@@ -226,16 +218,13 @@ kubectl get deploy nginx -o yaml
 ```bash
 kubectl describe deploy nginx # you'll see the name of the replica set on the Events section and in the 'NewReplicaSet' property
 # OR you can find rs directly by:
-kubectl get rs -l run=nginx # if you created deployment by 'run' command
-kubectl get rs -l app=nginx # if you created deployment by 'create' command
-# you could also just do kubectl get rs
-kubectl get rs nginx-7bf7478b77 -o yaml
+kubectl get rs -l app=nginx # if you created deployment by 'create' or 'apply' command
 ```
 
 </p>
 </details>
 
-### Get the YAML for one of the pods
+### Get the YAML for one of of the nginx deployment pods 
 
 <details><summary>show</summary>
 <p>
@@ -243,9 +232,7 @@ kubectl get rs nginx-7bf7478b77 -o yaml
 ```bash
 kubectl get po # get all the pods
 # OR you can find pods directly by:
-kubectl get po -l run=nginx # if you created deployment by 'run' command
 kubectl get po -l app=nginx # if you created deployment by 'create' command
-kubectl get po nginx-7bf7478b77-gjzp8 -o yaml
 ```
 
 </p>
@@ -270,8 +257,10 @@ kubectl rollout status deploy nginx
 
 ```bash
 kubectl set image deploy nginx nginx=nginx:1.7.9
-# alternatively...
+# alternatively you edit manually the deployment...
 kubectl edit deploy nginx # change the .spec.template.spec.containers[0].image
+# or patch it...
+kubectl patch deployment nginx --type=json --patch='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "nginx:1.7.9"}]'
 ```
 
 The syntax of the 'kubectl set image' command is `kubectl set image (-f FILENAME | TYPE NAME) CONTAINER_NAME_1=CONTAINER_IMAGE_1 ... CONTAINER_NAME_N=CONTAINER_IMAGE_N [options]`
@@ -332,9 +321,24 @@ kubectl edit deploy nginx
 
 ```bash
 kubectl rollout status deploy nginx
-# or
-kubectl get po # you'll see 'ErrImagePull'
 ```
+
+```text
+Waiting for deployment "nginx" rollout to finish: 1 out of 2 new replicas have been updated...
+```
+
+or ...
+
+```bash
+kubectl get po  # you'll see 'ErrImagePull'
+```
+
+```text
+nginx-6fcbd5b8b7-wfvfm   0/1     ErrImagePull   0          3m35s
+nginx-b84fd5c8-crdkx     1/1     Running        0          5m34s
+nginx-b84fd5c8-n972t     1/1     Running        0          5m32s
+```
+
 
 </p>
 </details>
@@ -443,9 +447,13 @@ kubectl rollout history deploy nginx --revision=6 # insert the number of your la
 kubectl delete deploy nginx
 kubectl delete hpa nginx
 
-#Or
+# Or...
 kubectl delete deploy/nginx hpa/nginx
+
+# Even...
+kubectl delete deploy/hpa nginx
 ```
+
 </p>
 </details>
 
@@ -475,9 +483,9 @@ kubectl create job pi  --image=perl -- perl -Mbignum=bpi -wle 'print bpi(2000)'
 <p>
 
 ```bash
-kubectl get jobs -w # wait till 'SUCCESSFUL' is 1 (will take some time, perl image might be big)
-kubectl get po # get the pod name
-kubectl logs pi-**** # get the pi numbers
+kubectl get jobs -w           # wait till 'COMPLETIONS' is 1/1 (will take some time, perl image might be big)
+kubectl get po -l job-name=pi # get the pod name
+kubectl logs -l job-name=pi   # get the pi numbers
 kubectl delete job pi
 ```
 
@@ -509,7 +517,7 @@ kubectl create job busybox --image=busybox -- /bin/sh -c 'echo hello;sleep 30;ec
 
 ```bash
 kubectl get po # find the job pod
-kubectl logs busybox-ptx58 -f # follow the logs
+kubectl logs -l job-name=busybox -f # follow the logs
 ```
 
 </p>
@@ -521,7 +529,7 @@ kubectl logs busybox-ptx58 -f # follow the logs
 <p>
 
 ```bash
-kubectl get jobs
+kubectl get jobs busybox
 kubectl describe jobs busybox
 kubectl logs job/busybox
 ```
@@ -580,6 +588,7 @@ spec:
       restartPolicy: OnFailure
 status: {}
 ```
+
 </p>
 </details>
 

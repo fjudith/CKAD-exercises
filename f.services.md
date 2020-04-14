@@ -7,7 +7,7 @@
 <p>
 
 ```bash
-kubectl run nginx --image=nginx --restart=Never --port=80 --expose
+kubectl run nginx --image=nginx --restart=Never --generator=run-pod/v1 --port=80 --expose
 # observe that a pod as well as a service are created
 ```
 
@@ -35,7 +35,7 @@ kubectl get ep # endpoints
 
 ```bash
 kubectl get svc nginx # get the IP (something like 10.108.93.130)
-kubectl run busybox --rm --image=busybox -it --restart=Never -- sh
+kubectl run busybox --rm --image=busybox--restart=Never --generator=run-pod/v1 -it  -- sh
 wget -O- IP:80
 exit
 ```
@@ -46,7 +46,7 @@ or
 
 ```bash
 IP=$(kubectl get svc nginx --template={{.spec.clusterIP}}) # get the IP (something like 10.108.93.130)
-kubectl run busybox --rm --image=busybox -it --restart=Never --env="IP=$IP" -- wget -O- $IP:80 --timeout 2
+kubectl run busybox --rm --image=busybox --restart=Never --generator=run-pod/v1 --env="IP=$IP" -it -- wget -O- $IP:80 --timeout 2
 # Tip: --timeout is optional, but it helps to get answer more quickly when connection fails (in seconds vs minutes)
 ```
 
@@ -116,8 +116,9 @@ kubectl delete pod nginx # Deletes the pod
 
 
 ```bash
-kubectl run foo --image=dgkanatsios/simpleapp --labels=app=foo --port=8080 --replicas=3
+kubectl run foo --image=dgkanatsios/simpleapp --labels=app=foo --port=8080 --replicas=3 --generator=run-pod/v1
 ```
+
 Or, you can use the more recent approach of creating the requested deployment as kubectl run has been deprecated.
 
 ```bash
@@ -167,7 +168,7 @@ status: {}
 
 ```bash
 kubectl get pods -l app=foo -o wide # 'wide' will show pod IPs
-kubectl run busybox --image=busybox --restart=Never -it --rm -- sh
+kubectl run busybox --image=busybox --restart=Never --generator=run-pod/v1 -it --rm -- sh
 wget -O- POD_IP:8080 # do not try with pod name, will not work
 # try hitting all IPs to confirm that hostname is different
 exit
@@ -198,7 +199,7 @@ kubectl get endpoints foo # you will see the IPs of the three replica nodes, lis
 
 ```bash
 kubectl get svc # get the foo service ClusterIP
-kubectl run busybox --image=busybox -it --rm --restart=Never -- sh
+kubectl run busybox --image=busybox --restart=Never --generator=run-pod/v1 -it --rm -- sh
 wget -O- foo:6262 # DNS works! run it many times, you'll see different pods responding
 wget -O- SERVICE_CLUSTER_IP:6262 # ClusterIP works as well
 # you can also kubectl logs on deployment pods to see the container logs
@@ -217,7 +218,7 @@ kubernetes.io > Documentation > Concepts > Services, Load Balancing, and Network
 <p>
 
 ```bash
-kubectl run nginx --image=nginx --replicas=2 --port=80 --expose
+kubectl run nginx --image=nginx --generator=run-pod/v1 --replicas=2 --port=80 --expose
 kubectl describe svc nginx # see the 'run=nginx' selector for the pods
 # or
 kubectl get svc nginx -o yaml
@@ -247,8 +248,8 @@ kubectl create -f policy.yaml
 
 # Check if the Network Policy has been created correctly
 # make sure that your cluster's network provider supports Network Policy (https://kubernetes.io/docs/tasks/administer-cluster/declare-network-policy/#before-you-begin)
-kubectl run busybox --image=busybox --rm -it --restart=Never -- wget -O- http://nginx:80 --timeout 2                          # This should not work. --timeout is optional here. But it helps to get answer more quickly (in seconds vs minutes)
-kubectl run busybox --image=busybox --rm -it --restart=Never --labels=access=granted -- wget -O- http://nginx:80 --timeout 2  # This should be fine
+kubectl run busybox --image=busybox --restart=Never --generator=run-pod/v1 --rm -it -- wget -O- http://nginx:80 --timeout 2                          # This should not work. --timeout is optional here. But it helps to get answer more quickly (in seconds vs minutes)
+kubectl run busybox --image=busybox --restart=Never --generator=run-pod/v1 --labels=access=granted --rm -it -- wget -O- http://nginx:80 --timeout 2  # This should be fine
 ```
 
 </p>
